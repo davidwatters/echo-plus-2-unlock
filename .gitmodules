@@ -1,0 +1,3 @@
+[submodule "third_party/kamakiri"]
+	path = third_party/kamakiri
+	url = https://github.com/R0rt1z2/kamakiri.git
