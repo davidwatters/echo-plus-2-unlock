@@ -5,6 +5,10 @@ bring up Kaeru fastboot on the Amazon Echo Plus (2nd generation, Lidar / MT8516)
 It deliberately does **not** contain a system image, audio stack, Wi-Fi data,
 SSH keys, account data, or backups from any individual unit.
 
+The approach uses the MTK BootROM/Kamakiri-style chain with a Lidar-specific
+Kaeru payload. It is a focused, reproducible port of that approach—not a
+universal installer or a repackaged full amonet-koboreru release.
+
 > [!WARNING]
 > **Early hardware support — tested on one device only.** This kit has been
 > validated on a single Echo Plus 2 / Lidar unit. It may not work on another
@@ -31,26 +35,36 @@ fails.
 - `brom-payload/` — source for the BROM handoff payload.
 - `tools/flash_kaeru.py` — explicit, guarded expdb writer.
 - `tools/sha256sums.txt` — artifact integrity hashes.
+- `third_party/kamakiri/` — pinned upstream Kamakiri source dependency.
+
+## Clone the repository
+
+Clone it with its pinned dependency included:
+
+```text
+git clone --recurse-submodules https://github.com/davidwatters/echo-plus-2-unlock.git
+cd echo-plus-2-unlock
+```
+
+If you already cloned it without the dependency, run:
+
+```text
+git submodule update --init --recursive
+```
 
 ## Before writing
 
 1. Make an independent full partition backup of the target.
-2. Clone the matching BROM host tooling and use its `modules/` directory:
-
-   ```text
-   git clone https://github.com/R0rt1z2/kamakiri.git
-   cd kamakiri
-   git checkout 77122812f02562ca19cfba78ba32ef64ce324b69
-   ```
-
-   This kit deliberately does not bundle that separate upstream project.
+2. Use the included pinned BROM host-tool dependency at
+   `third_party/kamakiri/modules/`. Do not substitute an arbitrary newer
+   Kamakiri revision while reproducing this result.
 3. Put the device into BROM mode.
 4. Run the writer with the real paths and **your own verified expected stock
    fingerprint**. The command refuses a mismatched GPT or partition hash.
 
 ```text
 python tools/flash_kaeru.py \
-  --modules /path/to/kamakiri/modules \
+  --modules third_party/kamakiri/modules \
   --image artifacts/lidar-kaeru-known-good.bin \
   --expected-stock-sha256 YOUR_PRE_FLASH_EXPDB_SHA256 \
   --yes-write
