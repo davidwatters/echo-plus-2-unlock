@@ -5,6 +5,14 @@ bring up Kaeru fastboot on the Amazon Echo Plus (2nd generation, Lidar / MT8516)
 It deliberately does **not** contain a system image, audio stack, Wi-Fi data,
 SSH keys, account data, or backups from any individual unit.
 
+> [!WARNING]
+> **Early hardware support — tested on one device only.** This kit has been
+> validated on a single Echo Plus 2 / Lidar unit. It may not work on another
+> unit, even with the same product name. Use it only on hardware you own or are
+> authorized to service, make and verify a complete backup first, and accept
+> the risk of device data loss or an unrecoverable boot failure. There is no
+> warranty or promise of support for any particular firmware revision.
+
 ## Supported target
 
 Only use this with an Echo Plus 2 / Lidar on the exact stock layout documented
