@@ -1,0 +1,298 @@
+#include <inttypes.h>
+
+#include "common.h"
+
+#include "debug.h"
+
+#include "libc.h"
+
+#include "drivers/types.h"
+#include "drivers/core.h"
+#include "drivers/mt_sd.h"
+#include "drivers/errno.h"
+#include "drivers/mmc.h"
+
+static uint32_t multi_read_buf[(64 * 0x200) / 4] __attribute__((aligned(4)));
+
+void sleepy(void) {
+    // TODO: do better
+    for (volatile int i = 0; i < 0x80000; ++i) {}
+}
+
+void mdelay (unsigned long msec)
+{
+    (void)msec;
+    sleepy();
+}
+
+/* delay usec useconds */
+void udelay (unsigned long usec)
+{
+    (void)usec;
+    sleepy();
+}
+
+int main() {
+    char buf[0x200] = { 0 };
+    int ret = 0;
+
+    printf("Entered 2ND stage payload\n");
+    printf("Copyright xyz, k4y0z 2019\n");
+
+//    while(1) {}
+
+    struct msdc_host host = { 0 };
+    host.ocr_avail = MSDC_OCR_AVAIL;
+
+    printf("Entering command loop\n");
+
+    send_dword(0xB1B2B3B4);
+
+    mmc_init(&host);
+
+    while (1) {
+        memset(buf, 0, sizeof(buf));
+        uint32_t magic = recv_dword();
+        if (magic != 0xf00dd00d) {
+            printf("Protocol error\n");
+            printf("Magic received = 0x%08X\n", magic);
+            break;
+        }
+        uint32_t cmd = recv_dword();
+        switch (cmd) {
+        case 0x1000: {
+            uint32_t block = recv_dword();
+            printf("Read block 0x%08X\n", block);
+            memset(buf, 0, sizeof(buf));
+            if (mmc_read(&host, block, buf) != 0) {
+                printf("Read error!\n");
+            } else {
+                send_data(buf, sizeof(buf));
+            }
+            break;
+        }
+        case 0x1003: {
+            printf("Read EXT_CSD\\n");
+            memset(buf, 0, sizeof(buf));
+
+            if (mmc_read_ext_csd_raw(&host, buf) != 0) {
+                printf("EXT_CSD read error!\\n");
+            } else {
+                send_data(buf, sizeof(buf));
+            }
+            break;
+        }
+        case 0x1004: {
+            uint32_t block = recv_dword();
+            uint32_t count = recv_dword();
+
+            if (count == 0 || count > 64) {
+                printf("Invalid multi-read count\n");
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            int r = mmc_read_multi(&host, block, count, multi_read_buf);
+
+            if (r != 0) {
+                printf("Multi-block read failed: 0x%08X\n", r);
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            send_dword(0xD0D0D0D0);
+            send_data(multi_read_buf, count * 0x200);
+
+            break;
+        }
+        case 0x1005: {
+            uint32_t div = recv_dword();
+            uint32_t mode = recv_dword();
+
+            if (div > 0xFFF || mode > 3) {
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            /*
+             * MT8516:
+             *   CKDIV = bits 8..19
+             *   CKMOD = bits 20..21
+             *
+             * Follow the Linux driver's sequence:
+             * gate clock, change divider/mode, wait stable,
+             * enable clock.
+             */
+            sdr_clr_bits(MSDC_CFG, (1U << 1));
+
+            uint32_t cfg = sdr_read32(MSDC_CFG);
+
+            cfg &= ~((0xFFFU << 8) | (0x3U << 20));
+            cfg |= ((div & 0xFFFU) << 8);
+            cfg |= ((mode & 0x3U) << 20);
+
+            sdr_write32(MSDC_CFG, cfg);
+
+            while (!(sdr_read32(MSDC_CFG) & (1U << 7))) {
+            }
+
+            sdr_set_bits(MSDC_CFG, (1U << 1));
+
+            send_dword(0xD0D0D0D0);
+            break;
+        }
+        case 0x1006: {
+            uint32_t width = recv_dword();
+            uint32_t ext_width;
+            uint32_t host_width;
+
+            switch (width) {
+            case 1:
+                ext_width = EXT_CSD_BUS_WIDTH_1;
+                host_width = MSDC_BUS_1BITS;
+                break;
+
+            case 4:
+                ext_width = EXT_CSD_BUS_WIDTH_4;
+                host_width = MSDC_BUS_4BITS;
+                break;
+
+            case 8:
+                ext_width = EXT_CSD_BUS_WIDTH_8;
+                host_width = MSDC_BUS_8BITS;
+                break;
+
+            default:
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            int r = mmc_switch(
+                &host,
+                EXT_CSD_CMD_SET_NORMAL,
+                EXT_CSD_BUS_WIDTH,
+                ext_width,
+                0
+            );
+
+            if (r != 0) {
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            uint32_t cfg = sdr_read32(SDC_CFG);
+
+            cfg &= ~SDC_CFG_BUSWIDTH;
+            cfg |= (host_width << 16);
+
+            sdr_write32(SDC_CFG, cfg);
+
+            send_dword(0xD0D0D0D0);
+            break;
+        }
+        case 0x1007: {
+            uint32_t block = recv_dword();
+            uint32_t count = recv_dword();
+
+            if (count == 0 || count > 64) {
+                printf("Invalid DMA read count\n");
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            int r = mmc_read_multi_dma(
+                &host,
+                block,
+                count,
+                multi_read_buf
+            );
+
+            if (r != 0) {
+                printf("DMA read failed: 0x%08X\n", r);
+                send_dword(0xBAD0BAD0);
+                break;
+            }
+
+            send_dword(0xD0D0D0D0);
+            send_data(
+                multi_read_buf,
+                count * 0x200
+            );
+
+            break;
+        }
+        case 0x1001: {
+            uint32_t block = recv_dword();
+            printf("Write block 0x%08X ", block);
+            memset(buf, 0, sizeof(buf));
+            recv_data(buf, 0x200, 0);
+            if (mmc_write(&host, block, buf) != 0) {
+                printf("Write error!\n");
+            } else {
+                printf("OK\n");
+                send_dword(0xD0D0D0D0);
+            }
+            break;
+        }
+        case 0x1002: {
+            uint32_t part = recv_dword();
+            printf("Switch to partition %d => ", part);
+            ret = mmc_set_part(&host, part);
+            printf("0x%08X\n", ret);
+            mdelay(500); // just in case
+            break;
+        }
+        case 0x2000: {
+            printf("Read rpmb\n");
+            mmc_rpmb_read(&host, buf);
+            send_data(buf, 0x100);
+            break;
+        }
+        case 0x2001: {
+            printf("Write rpmb\n");
+            recv_data(buf, 0x100, 0);
+            mmc_rpmb_write(&host, buf);
+            break;
+        }
+        case 0x5000: {
+            uint32_t address = recv_dword();
+            uint32_t size = recv_dword();
+            printf("Read %d Bytes from address 0x%08X\n", size, address);
+            send_data(address, size);
+            break;
+        }
+        case 0x3000: {
+            printf("Reboot\n");
+            volatile uint32_t *reg = (volatile uint32_t *)0x10007000;
+            reg[8/4] = 0x1971;
+            reg[0/4] = 0x22000014;
+            reg[0x14/4] = 0x1209;
+
+            while (1) {
+
+            }
+        }
+        case 0x3001: {
+            printf("Kick watchdog\n");
+            volatile uint32_t *reg = (volatile uint32_t *)0x10007000;
+            reg[8/4] = 0x1971;
+            break;
+        }
+        case 0x6000: {
+            printf("Set fastboot flag\n");
+            volatile uint32_t *reg = (volatile uint32_t *)0x10007000;
+            reg[0x24/4] |= (1 << 2);
+            break;
+        }
+        default:
+            printf("Invalid command\n");
+            break;
+        }
+    }
+
+    printf("Exiting the payload\n");
+
+    while (1) {
+
+    }
+}

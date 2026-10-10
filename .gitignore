@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.o
+*.d
+*.elf
+*.log
+*.img
+*.raw
+*.tar.gz
+backups/
