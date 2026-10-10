@@ -27,18 +27,29 @@ fails.
 ## Before writing
 
 1. Make an independent full partition backup of the target.
-2. Build/install the matching `kamakiri-mt8516` host tooling and make its
-   `modules/` directory available locally.
+2. Clone the matching BROM host tooling and use its `modules/` directory:
+
+   ```text
+   git clone https://github.com/R0rt1z2/kamakiri.git
+   cd kamakiri
+   git checkout 77122812f02562ca19cfba78ba32ef64ce324b69
+   ```
+
+   This kit deliberately does not bundle that separate upstream project.
 3. Put the device into BROM mode.
 4. Run the writer with the real paths and **your own verified expected stock
    fingerprint**. The command refuses a mismatched GPT or partition hash.
 
 ```text
 python tools/flash_kaeru.py \
-  --modules /path/to/kamakiri-mt8516/modules \
+  --modules /path/to/kamakiri/modules \
   --image artifacts/lidar-kaeru-known-good.bin \
-  --expected-stock-sha256 YOUR_PRE_FLASH_EXPDB_SHA256
+  --expected-stock-sha256 YOUR_PRE_FLASH_EXPDB_SHA256 \
+  --yes-write
 ```
+
+`YOUR_PRE_FLASH_EXPDB_SHA256` must be calculated from the target before its
+first write.  A target with a different hash must be investigated, not forced.
 
 ## Recovery
 
