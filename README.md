@@ -45,6 +45,8 @@ fails.
   it is not a reproducible build recipe for the opaque payload above.
 - `brom-payload/` — source for the BROM handoff payload.
 - `tools/flash_kaeru.py` — explicit, guarded expdb writer.
+- `tools/verify_tee1_reference.py` — read-only comparison helper for a TEE1
+  image extracted from the operator's own backup.
 - `tools/sha256sums.txt` — artifact integrity hashes.
 - `third_party/kamakiri/` — pinned upstream Kamakiri source dependency.
 
