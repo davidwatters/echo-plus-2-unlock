@@ -18,29 +18,36 @@ their banners during a normal power-on boot.
 
 ## What this repository does not provide
 
-The original working device also relied on a firmware-specific TEE1 handoff
-state. The `expdb` Kaeru payload alone is not evidence that another device has
-that state or will reproduce the same fastboot behavior.
-
-The original TEE1 handoff artifact is intentionally not published here because
-this repository does not contain a reproducible source build, provenance, or a
-device-revision compatibility matrix for it. It must not be replaced with an
-opaque binary and described as a universally safe flashing step.
-
-For provenance, the SHA-256 of the TEE1 handoff image observed on the original
-single-device research unit is:
+The original working-device fastboot snapshot shows stock TEE1 and stock TEE2,
+each with this SHA-256:
 
 ```text
-95ecb55ce28c9e5e54001e3328770277748f33b015d51297ab8a54e6f1380bf5
+d643f0531375da21897abf3841b163f2834815213a223627820eb93001c5a51f
 ```
 
-This is an identifier, not a firmware download or compatibility guarantee. A
-user can compare a TEE1 image extracted from their own backup with the included
-read-only helper:
+The baseline `expdb` Kaeru payload alone is still not evidence that another
+device has the matching boot-chain state or will reproduce the same fastboot
+behavior. A user can compare a TEE1 image extracted from their own backup with
+the included read-only helper:
 
 ```text
 python tools/verify_tee1_reference.py path/to/their/tee1.bin
 ```
+
+### Historical working-fastboot evidence
+
+A dated private snapshot of the original research unit records a later,
+different Kaeru artifact in the `expdb` role:
+
+```text
+lidar-kaeru-fastboot-rammap-fixed.bin
+SHA-256: 1ab8c5c02b1a0db732ad220243d9d20eca3540632784d815d5363e793aadbd73
+```
+
+That snapshot also records stock TEE1/TEE2. This public repository contains
+the earlier baseline artifact, not that later working-fastboot artifact. The
+historical hash is recorded for provenance only; it is not a compatibility
+guarantee or a substitute for reproducible source and target validation.
 
 Likewise, this project does not include a complete persistent operating-system
 installation. Any device-specific configuration—such as Wi-Fi credentials,

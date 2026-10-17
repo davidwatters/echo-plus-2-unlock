@@ -7,10 +7,11 @@ data, SSH keys, account data, or backups from any individual unit.
 
 > [!IMPORTANT]
 > This repository alone is **not** a complete persistent-unlock or full-system
-> installer. The original working unit also used a matching TEE1 handoff
-> artifact and a firmware-specific boot-chain state. Those materials are not
-> reproduced or built by this tree. Writing the Kaeru `expdb` payload alone
-> must not be represented as sufficient to reproduce the original unit.
+> installer. The original working unit retained stock TEE1/TEE2, but relied on
+> a firmware-specific Kaeru artifact and matching boot-chain state. Those
+> materials are not reproduced or built by this tree. Writing the baseline
+> Kaeru `expdb` payload alone must not be represented as sufficient to
+> reproduce the original unit.
 
 See [Boot-chain requirements and reproducibility status](docs/BOOT_CHAIN_REQUIREMENTS.md)
 before treating a normal verified boot as a failed or successful Kaeru test.
