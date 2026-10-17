@@ -1,9 +1,19 @@
-# Echo Plus 2 Lidar — Kaeru fastboot unlock kit
+# Echo Plus 2 Lidar — Kaeru expdb component
 
-This repository contains the minimal, device-family-specific materials used to
-bring up Kaeru fastboot on the Amazon Echo Plus (2nd generation, Lidar / MT8516).
-It deliberately does **not** contain a system image, audio stack, Wi-Fi data,
-SSH keys, account data, or backups from any individual unit.
+This repository contains the Kaeru `expdb` component and the pinned BROM
+transport used during research on one Amazon Echo Plus (2nd generation, Lidar)
+unit. It deliberately does **not** contain a system image, audio stack, Wi-Fi
+data, SSH keys, account data, or backups from any individual unit.
+
+> [!IMPORTANT]
+> This repository alone is **not** a complete persistent-unlock or full-system
+> installer. The original working unit also used a matching TEE1 handoff
+> artifact and a firmware-specific boot-chain state. Those materials are not
+> reproduced or built by this tree. Writing the Kaeru `expdb` payload alone
+> must not be represented as sufficient to reproduce the original unit.
+
+See [Boot-chain requirements and reproducibility status](docs/BOOT_CHAIN_REQUIREMENTS.md)
+before treating a normal verified boot as a failed or successful Kaeru test.
 
 The approach uses the MTK BootROM/Kamakiri-style chain with a Lidar-specific
 Kaeru payload. It is a focused, reproducible port of that approach—not a
@@ -29,9 +39,10 @@ fails.
 
 ## Contents
 
-- `artifacts/lidar-kaeru-known-good.bin` — known-good Kaeru payload for the
-  supported Lidar layout.
-- `source/lidar-board-kaeru-baseline.c` — matching target-board source patch.
+- `artifacts/lidar-kaeru-known-good.bin` — known-good Kaeru `expdb` payload
+  for the tested layout.
+- `source/lidar-board-kaeru-baseline.c` — historical baseline source note;
+  it is not a reproducible build recipe for the opaque payload above.
 - `brom-payload/` — source for the BROM handoff payload.
 - `tools/flash_kaeru.py` — explicit, guarded expdb writer.
 - `tools/sha256sums.txt` — artifact integrity hashes.
@@ -81,5 +92,7 @@ does not ship somebody else's stock partitions.
 
 ## Status
 
-This is a focused research/recovery kit for the supported Echo Plus 2 hardware.
-Use at your own risk and only on hardware you own or are authorized to service.
+This is a focused research/recovery component for the supported Echo Plus 2
+hardware. Use at your own risk and only on hardware you own or are authorized
+to service. A complete reproducible port requires the matching handoff source,
+exact build inputs, and validation against the target firmware revision.
