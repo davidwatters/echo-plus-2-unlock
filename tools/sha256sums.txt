@@ -1,1 +1,2 @@
 754ab33bc26dc9b359a2e9a187a0ae7810665fc2a7a85b7615b64bcd5f632e82  artifacts/lidar-kaeru-known-good.bin
+95ecb55ce28c9e5e54001e3328770277748f33b015d51297ab8a54e6f1380bf5  artifacts/lidar-koboreru-tee1.img

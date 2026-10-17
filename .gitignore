@@ -5,6 +5,7 @@ __pycache__/
 *.elf
 *.log
 *.img
+!artifacts/lidar-koboreru-tee1.img
 *.raw
 *.tar.gz
 backups/

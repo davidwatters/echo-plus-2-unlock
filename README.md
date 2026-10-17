@@ -8,10 +8,12 @@ data, SSH keys, account data, or backups from any individual unit.
 > [!IMPORTANT]
 > This repository alone is **not** a complete persistent-unlock or full-system
 > installer. The original working unit retained stock TEE1/TEE2, but relied on
-> a firmware-specific Kaeru artifact and matching boot-chain state. Those
-> materials are not reproduced or built by this tree. Writing the baseline
-> Kaeru `expdb` payload alone must not be represented as sufficient to
-> reproduce the original unit.
+> a firmware-specific Kaeru artifact and matching boot-chain state. A separate
+> preserved Koboreru TEE1 loader has now been independently validated with the
+> matching chain on a second Lidar unit; it is included as a compact paired
+> payload, not as a replacement full TEE1 image. Writing the baseline Kaeru
+> `expdb` payload alone must not be represented as sufficient to reproduce the
+> original unit.
 
 See [Boot-chain requirements and reproducibility status](docs/BOOT_CHAIN_REQUIREMENTS.md)
 before treating a normal verified boot as a failed or successful Kaeru test.
@@ -19,6 +21,9 @@ before treating a normal verified boot as a failed or successful Kaeru test.
 The approach uses the MTK BootROM/Kamakiri-style chain with a Lidar-specific
 Kaeru payload. It is a focused, reproducible port of that approach—not a
 universal installer or a repackaged full amonet-koboreru release.
+
+For the corrected TEE1 evidence record from the previous working Plus 2, see
+[`docs/TEE1_PREVIOUS_PLUS2_HISTORY.md`](docs/TEE1_PREVIOUS_PLUS2_HISTORY.md).
 
 > [!WARNING]
 > **Early hardware support — tested on one device only.** This kit has been
@@ -48,6 +53,12 @@ fails.
 - `tools/flash_kaeru.py` — explicit, guarded expdb writer.
 - `tools/verify_tee1_reference.py` — read-only comparison helper for a TEE1
   image extracted from the operator's own backup.
+- `artifacts/lidar-koboreru-tee1.img` — the compact, payload-bearing TEE1
+  loader used with Kaeru. It is intentionally **not** a full TEE1 partition
+  image.
+- `tools/dump_tee1.py` — read-only full-TEE1 backup tool.
+- `tools/flash_lidar_koboreru_tee1.py` — guarded writer for the compact TEE1
+  loader; it checks the target GPT and verifies the written sectors.
 - `tools/sha256sums.txt` — artifact integrity hashes.
 - `third_party/kamakiri/` — pinned upstream Kamakiri source dependency.
 
@@ -86,6 +97,57 @@ python tools/flash_kaeru.py \
 
 `YOUR_PRE_FLASH_EXPDB_SHA256` must be calculated from the target before its
 first write.  A target with a different hash must be investigated, not forced.
+
+## Verified Lidar bring-up chain
+
+The working chain is a matched set, in this order:
+
+```text
+downgraded Lidar preloader → Kaeru in expdb → payload-bearing TEE1 loader → Kaeru fastboot
+```
+
+The TEE1 component is a small loader, not a device-specific 5 MiB partition
+clone. The original Koboreru flow writes its payload to the beginning of
+`tee1`, pads only the final 512-byte sector, and leaves the remainder of the
+partition alone. The loader then transfers control to Kaeru in `expdb`.
+
+### Required preflight
+
+Before any write, make and retain verified reads of boot0, expdb, and the full
+TEE1 partition. Never substitute a dump from another unit for these backups.
+The supplied TEE1 writer requires that local full-partition backup as a guard.
+
+### Install the paired TEE1 loader
+
+After the matching Lidar preloader and Kaeru `expdb` artifact are already in
+place, put the unit in BROM mode and run:
+
+```text
+python tools/flash_lidar_koboreru_tee1.py \
+  --modules third_party/kamakiri/modules \
+  --stage1 brom-payload/stage1/stage1.bin \
+  --stage2 brom-payload/stage2/stage2.bin \
+  --payload artifacts/lidar-koboreru-tee1.img \
+  --backup lidar_current_tee1.bin
+```
+
+The writer accepts only the published payload hash, confirms the Lidar TEE1
+GPT location, writes only the padded payload range, reads it back, and does
+not reboot the unit or alter its boot-mode flag.
+
+### Confirm the result without writing anything else
+
+Boot to fastboot, then run:
+
+```text
+fastboot devices
+fastboot getvar unlock_status
+fastboot oem kaeru-version
+```
+
+A successful result reports `unlock_status: true` and a `kaeru v...` version.
+The UART log should include `Jumping to kaeru stage 2` followed by the Kaeru
+banner. Stop and investigate if either signal is absent.
 
 ## Recovery
 
